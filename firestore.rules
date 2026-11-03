@@ -18,7 +18,7 @@ service cloud.firestore {
         || (eleman() && resource.data.durum == 'fiyat' && elemanAlanlari())
         || (yazici() && resource.data.durum == 'yazdir' && request.resource.data.durum == 'basildi'
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durum','basildi']));
-      allow delete: if sahip();
+      allow delete: if sahip() || eleman();
     }
     match /ayar/telegram {
       allow read: if girdi();
