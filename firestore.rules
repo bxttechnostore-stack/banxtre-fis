@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function rol() { return request.auth.token.email.split('@')[0]; }
+    function girdi() { return request.auth != null; }
+    function sahip() { return girdi() && rol() == 'sahip'; }
+    function eleman() { return girdi() && rol() == 'eleman'; }
+    function yazici() { return girdi() && rol() == 'yazici'; }
+    function elemanAlanlari() {
+      return request.resource.data.keys().hasOnly(['marka','model','gelis','tarih','adlar','durum','olusturan','olusturuldu','guncellendi'])
+        && request.resource.data.durum == 'fiyat'
+        && request.resource.data.adlar is list;
+    }
+    match /fisler/{id} {
+      allow read: if girdi();
+      allow create: if sahip() || (eleman() && elemanAlanlari());
+      allow update: if sahip()
+        || (eleman() && resource.data.durum == 'fiyat' && elemanAlanlari())
+        || (yazici() && resource.data.durum == 'yazdir' && request.resource.data.durum == 'basildi'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durum','basildi']));
+      allow delete: if sahip();
+    }
+    match /ayar/telegram {
+      allow read: if girdi();
+      allow write: if sahip();
+    }
+    match /ayar/yazici {
+      allow read: if girdi();
+      allow write: if yazici();
+    }
+  }
+}

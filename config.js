@@ -1,0 +1,1 @@
+window.FIREBASE_YAPILANDIRMA={apiKey:"AIzaSyCSLTGKktoqip8tfEXUAXAq1TgP4JGhd1E",authDomain:"banxtre-fis.firebaseapp.com",projectId:"banxtre-fis",storageBucket:"banxtre-fis.firebasestorage.app",messagingSenderId:"983133770768",appId:"1:983133770768:web:d265cbd336ac10a5e22695"};
