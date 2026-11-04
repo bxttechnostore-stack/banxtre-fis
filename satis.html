@@ -466,7 +466,7 @@ function vToday(){
   ${ordersSection(orders,td)}
   <section class="sec"><h2>Bugün dönülecek müşteriler <small>${follow.length}</small></h2>${follow.length?follow.map(c=>card(c,dups,td)).join(''):`<div class="empty">Şimdilik dönülecek müşteri yok. Fiyat sorup almayanları “Müşteri ekle” ile kaydet, zamanı gelince burada görünsün.</div>`}</section>
   ${miss.length?`<section class="sec"><h2>Eksik kayıt <small>${miss.length}</small></h2>${miss.map(c=>card(c,dups,td)).join('')}</section>`:''}
-  <section class="sec"><h2>Gün sonu</h2><label>Batuhan’a not (isteğe bağlı)<input type="text" id="eodNote" value="${esc(day.eodNote||'')}" placeholder="Bugün en çok ne engel oldu?"></label>
+  <section class="sec"><h2>Gün sonu</h2><div class="two"><label>Bugün toplam kaç sipariş aldık?<input type="number" inputmode="numeric" min="0" step="1" id="eodOrders" value="${day.eodOrders??''}" placeholder="Tüm kanallar"></label><label>Toplam tutar (TL, isteğe bağlı)<input type="text" inputmode="decimal" id="eodSum" value="${day.eodSum??''}"></label></div><label>Batuhan’a not (isteğe bağlı)<input type="text" id="eodNote" value="${esc(day.eodNote||'')}" placeholder="Bugün en çok ne engel oldu?"></label>
   <button class="btn wide" data-act="closeDay">${day.eodDone?'Gün bitirildi. Notu güncelle':'Günü bitir'}</button></section>
   ${S.isOwner?'':'<button class="link" data-act="logout">Çıkış yap</button>'}`;
 }
@@ -488,7 +488,7 @@ function vOwner(){
   <section class="sec"><h2>Çalışan bugün</h2>
     <div class="stats">${stat(`${done} / ${rs.length}`,'Günlük iş')}${stat(`${tTasks.filter(t=>t.status==='done').length} / ${tTasks.length}`,'Verdiğin görev')}${stat(L.filter(c=>c.openedAt===td).length,'Eklenen müşteri')}${stat(eventsOn(L,td,'followup'),'Müşteriye dönüş')}${stat(pending.length,'Bekleyen sipariş')}${stat(late,'Geciken müşteri')}</div>
     ${rs.length?`<div class="checks">${rs.map(r=>{const m=day.routine&&day.routine[r.id];return tick('','',r.title,!!m,'',m?trClock(m.at):'Bekliyor',true)}).join('')}</div>`:''}
-    ${day.eodDone?`<div class="note"><b>Gün bitirildi.</b> ${esc(day.eodNote||'')}</div>`:''}
+    ${day.eodDone?`<div class="note"><b>Gün bitirildi. Toplam sipariş: ${esc(day.eodOrders??'—')}${day.eodSum?' ('+esc(tl(day.eodSum))+')':''}.</b> ${esc(day.eodNote||'')}</div>`:''}
   </section>
   ${ordersSection(pending,td)}
   <section class="sec"><h2>Görevler</h2>
@@ -564,16 +564,19 @@ function vReport(){
   const td=today(),from=S.range==='0'?td:addDays(td,-(Number(S.range)-1));
   const L=S.convs,R=report(L,from,td),dups=duplicates(L);
   const half=L.filter(c=>HALF.includes(c.status)).length;
+  const closed=Object.entries(S.days).filter(([d,x])=>d>=from&&d<=td&&x.eodOrders!=null).map(([,x])=>x);
+  const dayOrders=closed.reduce((a,x)=>a+x.eodOrders,0),daySum=closed.reduce((a,x)=>a+(x.eodSum||0),0);
   const days=[];for(let i=6;i>=0;i--)days.push(addDays(td,-i));
   const rows=days.map(d=>{const {rs,day,done}=dayState(d);const tot=day.total??rs.length;
-    return `<tr><td>${esc(trDate(d))}</td><td>${tot?done+' / '+tot:'—'}</td><td>${S.tasks.filter(t=>t.doneDay===d).length}</td><td>${L.filter(c=>c.openedAt===d).length}</td><td>${eventsOn(L,d,'followup')}</td><td>${L.filter(c=>isVerified(c,dups)&&c.orderDate===d).length}</td></tr>`}).join('');
+    return `<tr><td>${esc(trDate(d))}</td><td>${tot?done+' / '+tot:'—'}</td><td>${S.tasks.filter(t=>t.doneDay===d).length}</td><td>${L.filter(c=>c.openedAt===d).length}</td><td>${eventsOn(L,d,'followup')}</td><td>${L.filter(c=>isVerified(c,dups)&&c.orderDate===d).length}</td><td>${day.eodOrders??'—'}</td></tr>`}).join('');
   const notes=days.slice().reverse().filter(d=>S.days[d]&&S.days[d].eodNote).slice(0,4);
   return `<div class="chips">${[['0','Bugün'],['7','Son 7 gün'],['30','Son 30 gün']].map(([k,l])=>`<button class="chip ${S.range===k?'on':''}" data-act="range" data-val="${k}">${l}</button>`).join('')}</div>
   <div class="stats">${stat(tl(R.collected),`Tahsilat, ${R.orders} sipariş`,'hero')}
     ${stat(tl(R.followSum),`Takip sonrası, ${R.followN} sipariş`)}${stat(tl(R.directSum),`Doğrudan, ${R.directN} sipariş`)}
-    ${stat(tl(R.addon),'Ek ürün (tahsilatın içinde)')}${stat(R.opened,'Eklenen müşteri')}${stat(half,'Şu an yarım kalan')}${stat(R.opened?'%'+Math.round(R.openedPaid/R.opened*100):'—','Müşteriden siparişe')}</div>
-  <p class="hint">Tutarlar kâr değildir. Kargo ve tam iadeler hariçtir. Takip sonrası satışın tamamı çalışanın yarattığı kesin ek gelir sayılmaz.</p>
-  <section class="sec"><h2>Çalışan performansı <small>son 7 gün</small></h2><div class="tablew"><table><thead><tr><th>Gün</th><th>Günlük iş</th><th>Görev</th><th>Müşteri</th><th>Dönüş</th><th>Sipariş</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${stat(tl(R.addon),'Ek ürün (tahsilatın içinde)')}${stat(R.opened,'Eklenen müşteri')}${stat(half,'Şu an yarım kalan')}${stat(R.opened?'%'+Math.round(R.openedPaid/R.opened*100):'—','Müşteriden siparişe')}
+    ${stat(dayOrders,`Gün sonu bildirilen sipariş, ${closed.length} gün`)}${stat(tl(daySum),'Gün sonu bildirilen tutar')}</div>
+  <p class="hint">Gün sonu rakamları çalışanın bildirimidir, sipariş kayıtlarıyla doğrulanmaz. Tutarlar kâr değildir. Kargo ve tam iadeler hariçtir. Takip sonrası satışın tamamı çalışanın yarattığı kesin ek gelir sayılmaz.</p>
+  <section class="sec"><h2>Çalışan performansı <small>son 7 gün</small></h2><div class="tablew"><table><thead><tr><th>Gün</th><th>Günlük iş</th><th>Görev</th><th>Müşteri</th><th>Dönüş</th><th>Panelde sipariş</th><th>Gün sonu sipariş</th></tr></thead><tbody>${rows}</tbody></table></div>
   ${notes.map(d=>`<div class="note"><b>${esc(trDate(d))}:</b> ${esc(S.days[d].eodNote)}</div>`).join('')}</section>
   <section class="sec"><h2>Neden almadılar? <small>${R.lost}</small></h2>${bars(R.byLoss,v=>String(v))}</section>
   <section class="sec"><h2>Sipariş kanalları</h2>${bars(R.byChannel,tl)}</section>`;
@@ -844,10 +847,13 @@ const Act={
     if(p){URL.revokeObjectURL(p.url);S.pendingImg=null;renderPrev()}
   },
   async closeDay(){
-    const td=today(),b={eodDone:true,eodAt:new Date().toISOString(),eodNote:v('eodNote')};
+    const raw=v('eodOrders'),n=Number(raw),sum=parseTL(v('eodSum'));
+    if(raw===''||!Number.isInteger(n)||n<0)return toast('Günü bitirmeden önce toplam sipariş sayısını yaz.');
+    if(Number.isNaN(sum)||(sum!==null&&sum<0))return toast('Tutarı sayı olarak yaz. Örn. 12.500');
+    const td=today(),b={eodDone:true,eodAt:new Date().toISOString(),eodNote:v('eodNote'),eodOrders:n,eodSum:sum};
     await guard(()=>S.days[td]?S.db.doc('days/'+td).update(b):S.db.doc('days/'+td).set(b));
     toast('Gün bitirildi');render(true);
-    {const{rs,done}=dayState(td);haber('owner','Gün bitirildi. Günlük işler: '+done+' / '+rs.length+(b.eodNote?'. Not: '+b.eodNote:''))}
+    {const{rs,done}=dayState(td);haber('owner','Gün bitirildi. Toplam sipariş: '+n+(sum?' ('+tl(sum)+')':'')+'. Günlük işler: '+done+' / '+rs.length+(b.eodNote?'. Not: '+b.eodNote:''))}
   },
   addRoutine(){syncRoutines();S.editRoutines.push({id:'r'+Date.now().toString(36),title:'',days:[1,2,3,4,5,6]});render(true)},
   delRoutine(e){syncRoutines();S.editRoutines.splice(Number(e.dataset.val),1);render(true)},
