@@ -28,5 +28,10 @@ service cloud.firestore {
       allow read: if girdi();
       allow write: if yazici();
     }
+    function satis() { return girdi() && rol() == 'satis'; }
+    match /satis/kayit/{bolum}/{id} {
+      allow read: if sahip() || satis();
+      allow write: if sahip() || (satis() && bolum != 'settings');
+    }
   }
 }
